@@ -1,97 +1,52 @@
 # Smart purge for the QIDI Plus5 + QIDI Box
 
-The stock start G-code of the QIDI Plus5 with a QIDI Box reloads the filament and purges about 200 mm at the start of every print, even when the same spool is already sitting in the nozzle from the print before.
+At the start of every print, the QIDI Plus5 reloads the filament and purges about 200 mm, even when the same spool is already in the nozzle. These Klipper macros skip that when nothing has changed:
 
-These Klipper macros skip that when nothing has changed:
+- **Same slot, same filament still loaded:** no reload, just a 25 mm prime.
+- **Anything else** (another slot, a different spool, nothing loaded): the normal full purge.
 
-- **Same slot, same filament still loaded:** no reload and no long purge, only a short prime (25 mm).
-- **Anything else** (another slot, a different spool in that slot, nothing loaded, box off): the stock full load and purge, unchanged.
-
-The decision is printed to the console at the start of each print, for example:
-
-```
-Smart purge: slot1 already loaded (same filament), skipping purge
-Smart purge: slot2 not loaded (nozzle has slot1), full purge
-Smart purge: spool in slot1 changed since last print, full purge
-```
-
-## How it decides
-
-QIDI's firmware keeps the box state in Klipper's saved variables. The macros only read them, and add one variable of their own (`smart_purge_sig`):
-
-| Variable | Meaning |
-|---|---|
-| `value_tN` | which slot tool N uses (e.g. `slot1`) |
-| `slot_sync` | which slot is in the nozzle (`slot-1` = none) |
-| `slotN` | that slot's state: `2` = loaded into the nozzle |
-| `filament_slotN`, `color_slotN`, `vendor_slotN` | the filament set for that slot on the printer screen |
-| `smart_purge_sig` | an integer hash of slot + filament + colour + vendor at the last print (written by the macros) |
-
-The purge is skipped only when the box is enabled, the tool's slot is the one in the nozzle and marked loaded, and the slot's filament, colour and vendor are the same as at the last print. Changing the filament or colour of that slot on the printer screen therefore forces a full purge.
-
-## What's in here
-
-| File | What |
-|---|---|
-| `smart_purge.cfg` | the macros: `SMART_PURGE_CHECK`, `SMART_FLUSH`, `SMART_PRIME` |
-| `install.sh` | installs or removes `smart_purge.cfg` on the printer |
-| `qidistudio/X-Plus 5 0.4 nozzle - Smart Purge.json` | a QIDI Studio printer profile that uses the macros |
-| `smart_purge_patch.py` | rewrites an already-sliced `.gcode.3mf` to use the macros |
+Each print logs its decision to the console, e.g. `Smart purge: slot1 already loaded (same filament), skipping purge`.
 
 ## Install
 
-1. **On the printer** (SSH as `qidi`), copy this folder over and run:
-   ```
-   cd smart-purge && ./install.sh
-   ```
-   This copies `smart_purge.cfg` to `~/printer_data/config/klipper-macros-qd/`. QIDI's `printer.cfg` already includes every `.cfg` in that folder, so no QIDI file is edited. Klipper is restarted if the printer is idle.
+1. **Printer** (SSH as `qidi`): copy this folder over and run `./install.sh`.
+   It copies `smart_purge.cfg` into QIDI's `klipper-macros-qd` folder, which is already included, so no QIDI file is edited. It also restarts Klipper if the printer is idle.
+2. **QIDI Studio:** use **File → Import → Import Configs**, pick `qidistudio/X-Plus 5 0.4 nozzle - Smart Purge.json`, and select that printer profile.
+   The profile is QIDI's own with four G-code edits:
+   - `SMART_PURGE_CHECK` before `BOX_PRINT_START`.
+   - `SMART_FLUSH` instead of `EXTRUSION_AND_FLUSH`.
+   - `SMART_PRIME` instead of `G1 E200 F300`.
+   - No `UNLOAD_FILAMENT` at the end, so the filament stays loaded for the next print.
 
-2. **In QIDI Studio**, add the profile:
-   - **File → Import → Import Configs**, and pick `qidistudio/X-Plus 5 0.4 nozzle - Smart Purge.json`. Or copy the file into `%APPDATA%\QIDIStudio\user\<your user id or "default">\machine\` and restart QIDI Studio.
-   - In the **Prepare** tab, open the printer dropdown and choose **X-Plus 5 0.4 nozzle - Smart Purge** under *User presets*.
+Already-sliced files: `python smart_purge_patch.py in.gcode.3mf out.gcode.3mf`.
 
-   The profile inherits QIDI's built-in "X-Plus 5 0.4 nozzle" profile and changes only the machine G-code:
-   - **Start G-code:**
-     - `SMART_PURGE_CHECK EXTRUDER=[initial_no_support_extruder]` before `BOX_PRINT_START`.
-     - `EXTRUSION_AND_FLUSH` becomes `SMART_FLUSH`.
-     - `G1 E200 F300` becomes `SMART_PRIME LEN=200 SHORT=25`.
-   - **End G-code:** `UNLOAD_FILAMENT` is commented out, so the filament stays in the nozzle for the next print. Without this, every print ends unloaded and the next one always purges.
+## After a QIDI firmware update
 
-   For your own profile, make the same four edits to its machine G-code.
-
-3. **Files you already sliced:** `python smart_purge_patch.py in.gcode.3mf out.gcode.3mf` writes a copy that uses the macros. It changes only the three start G-code lines and updates the file's MD5. The end G-code is left as it is.
+The update deletes the macros. Run `./install.sh` again, or prints sliced with this profile stop with "Unknown command SMART_PURGE_CHECK".
 
 ## Remove
 
-```
-./install.sh uninstall
-```
+Run `./install.sh uninstall`, then switch QIDI Studio back to the stock printer profile.
 
-This deletes the `.cfg` and restarts Klipper. Then switch QIDI Studio back to the stock printer profile: a file sliced with the Smart Purge profile calls these macros and fails without them. The `smart_purge_sig` saved variable stays behind; it's harmless, and nothing else reads it.
-
-A QIDI firmware update may replace the `klipper-macros-qd` folder. If the console says `Unknown command: "SMART_PURGE_CHECK"`, run `./install.sh` again.
-
-## Notes
-
-- **Changing slots with filament left loaded:** because the profile no longer unloads at the end, the next print on a *different* slot starts with the old filament still in the nozzle. `BOX_PRINT_START` cuts and unloads it before loading the new slot, and the smart purge does a full purge. This was tested on the printer.
-- **Manual loads count:** loading a slot from the printer screen sets the same variables, so a print on that slot right after skips the purge.
-
-## Tested versions
+## Tested with
 
 | | Version |
 |---|---|
-| Printer firmware (SOC) | 01.01.01.07, 01.01.02.01 |
+| Printer firmware | 01.01.01.07, 01.01.02.01 |
 | MCU / toolhead / box firmware | 02.01.01.12 / 02.02.01.08 / 02.03.01.21 |
 | QIDI Studio | 2.7.2.60 |
 
-Hardware: QIDI Plus5 with one QIDI Box (the original USB box, not the RS485 one).
+These versions were tested with one original (USB) QIDI Box.
 
-**Firmware updates delete the macros.** QIDI's installer removes the whole `klipper-macros-qd` folder, so run `./install.sh` again after every update. Until then, prints sliced with the Smart Purge profile stop with "Unknown command SMART_PURGE_CHECK".
+## How it decides
 
-**Since 01.01.02.01:**
-- `filament_slotN` is a filament ID string (e.g. `'QFG04'`) and `color_slotN` is a list (e.g. `['FAFAFA']`). The signature is now an integer hash of those strings, so the first print after updating does a full purge once.
-- The update also replaces `printer.cfg`, which resets saved calibration (input shaper, bed meshes). Back up its `SAVE_CONFIG` section before updating.
+It skips the purge only when all of these hold:
+- the box is enabled;
+- the tool's slot (`value_tN`) is the one in the nozzle (`slot_sync`, with `slotN` = 2);
+- the slot's filament, colour and vendor match the last print.
+
+The macros store a hash of those values in the saved variable `smart_purge_sig`.
 
 ## License
 
-MIT, see `LICENSE`.
+MIT
