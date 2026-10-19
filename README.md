@@ -73,7 +73,7 @@ A QIDI firmware update may replace the `klipper-macros-qd` folder. If the consol
 
 ## Notes
 
-- **Changing slots with filament left loaded:** because the profile no longer unloads at the end, the next print on a *different* slot starts with the old filament still in the nozzle. `BOX_PRINT_START` is expected to cut and unload it before loading the new slot, as it does for mid-print colour changes. Watch the first print where you switch slots. If the old filament isn't unloaded, unload from the printer screen before switching.
+- **Changing slots with filament left loaded:** because the profile no longer unloads at the end, the next print on a *different* slot starts with the old filament still in the nozzle. `BOX_PRINT_START` cuts and unloads it before loading the new slot, and the smart purge does a full purge. This was tested on the printer.
 - **Manual loads count:** loading a slot from the printer screen sets the same variables, so a print on that slot right after skips the purge.
 - Tested on a QIDI Plus5 with one QIDI Box and QIDI Studio 2.7.
 
