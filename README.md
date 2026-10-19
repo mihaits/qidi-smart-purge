@@ -34,7 +34,7 @@ Run `./install.sh uninstall`, then switch QIDI Studio back to the stock printer 
 |---|---|
 | Printer firmware | 01.01.01.07, 01.01.02.01 |
 | MCU / toolhead / box firmware | 02.01.01.12 / 02.02.01.08 / 02.03.01.21 |
-| QIDI Studio | 2.7.2.60 |
+| QIDI Studio | 2.7.2.60, 2.7.2.73 |
 
 These versions were tested with one original (USB) QIDI Box.
 
