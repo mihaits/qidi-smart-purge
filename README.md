@@ -25,7 +25,7 @@ QIDI's firmware keeps the box state in Klipper's saved variables. The macros onl
 | `slot_sync` | which slot is in the nozzle (`slot-1` = none) |
 | `slotN` | that slot's state: `2` = loaded into the nozzle |
 | `filament_slotN`, `color_slotN`, `vendor_slotN` | the filament set for that slot on the printer screen |
-| `smart_purge_sig` | slot + filament + colour + vendor at the last print (written by the macros) |
+| `smart_purge_sig` | an integer hash of slot + filament + colour + vendor at the last print (written by the macros) |
 
 The purge is skipped only when the box is enabled, the tool's slot is the one in the nozzle and marked loaded, and the slot's filament, colour and vendor are the same as at the last print. Changing the filament or colour of that slot on the printer screen therefore forces a full purge.
 
@@ -75,7 +75,22 @@ A QIDI firmware update may replace the `klipper-macros-qd` folder. If the consol
 
 - **Changing slots with filament left loaded:** because the profile no longer unloads at the end, the next print on a *different* slot starts with the old filament still in the nozzle. `BOX_PRINT_START` cuts and unloads it before loading the new slot, and the smart purge does a full purge. This was tested on the printer.
 - **Manual loads count:** loading a slot from the printer screen sets the same variables, so a print on that slot right after skips the purge.
-- Tested on a QIDI Plus5 with one QIDI Box and QIDI Studio 2.7.
+
+## Tested versions
+
+| | Version |
+|---|---|
+| Printer firmware (SOC) | 01.01.01.07, 01.01.02.01 |
+| MCU / toolhead / box firmware | 02.01.01.12 / 02.02.01.08 / 02.03.01.21 |
+| QIDI Studio | 2.7.2.60 |
+
+Hardware: QIDI Plus5 with one QIDI Box (the original USB box, not the RS485 one).
+
+**Firmware updates delete the macros.** QIDI's installer removes the whole `klipper-macros-qd` folder, so run `./install.sh` again after every update. Until then, prints sliced with the Smart Purge profile stop with "Unknown command SMART_PURGE_CHECK".
+
+**Since 01.01.02.01:**
+- `filament_slotN` is a filament ID string (e.g. `'QFG04'`) and `color_slotN` is a list (e.g. `['FAFAFA']`). The signature is now an integer hash of those strings, so the first print after updating does a full purge once.
+- The update also replaces `printer.cfg`, which resets saved calibration (input shaper, bed meshes). Back up its `SAVE_CONFIG` section before updating.
 
 ## License
 
