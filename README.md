@@ -22,7 +22,9 @@ Already-sliced files: `python smart_purge_patch.py in.gcode.3mf out.gcode.3mf`.
 
 ## After a QIDI firmware update
 
-The update deletes the macros. Run `./install.sh` again, or prints sliced with this profile stop with "Unknown command SMART_PURGE_CHECK".
+The update deletes the macros. Run `./install.sh` again before the next print.
+
+QIDI's Klipper ignores unknown commands without any message. So without the macros, a file sliced with this profile still prints, but with no flush and no purge at the start, and nothing warns you.
 
 ## Remove
 
@@ -37,6 +39,8 @@ Run `./install.sh uninstall`, then switch QIDI Studio back to the stock printer 
 | QIDI Studio | 2.7.2.60, 2.7.2.73 |
 
 These versions were tested with one original (USB) QIDI Box.
+
+Firmware 01.01.02.02 is not print-tested yet. Its package was checked: QIDI's flush command `EXTRUSION_AND_FLUSH` moved from a macro into compiled code, and the saved variables the macros read are used the same way. `SMART_FLUSH` now checks that the flush command exists, and pauses the print with a console message if a later firmware removes it.
 
 ## How it decides
 
